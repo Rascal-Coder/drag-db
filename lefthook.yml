@@ -13,6 +13,11 @@ pre-commit:
     - run: npx tsc --noEmit
       glob: "*.{ts,tsx}"
 
+post-merge:
+  commands:
+    install:
+      run: pnpm install
+
 commit-msg:
   commands:
     commitlint:
