@@ -1,0 +1,20 @@
+pre-commit:
+  jobs:
+    - run: pnpm dlx ultracite fix
+      glob:
+        - "*.js"
+        - "*.jsx"
+        - "*.ts"
+        - "*.tsx"
+        - "*.json"
+        - "*.jsonc"
+        - "*.css"
+      stage_fixed: true
+    - run: npx tsc --noEmit
+      glob: "*.{ts,tsx}"
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx commitlint --edit {1}
+      skip: [merge, rebase]
