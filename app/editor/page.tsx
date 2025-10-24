@@ -49,10 +49,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import Canvas from "./components/canvas";
 
 export default function EditorPage() {
   const [activeTab, setActiveTab] = useState("tables");
-  const [searchQuery, setSearchQuery] = useState("");
   const { theme, setTheme } = useTheme();
 
   return (
@@ -280,12 +280,7 @@ export default function EditorPage() {
                         <div className="border-b p-4">
                           <div className="relative">
                             <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-muted-foreground" />
-                            <Input
-                              className="pl-9"
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              placeholder="Search tables, fields..."
-                              value={searchQuery}
-                            />
+                            <Input className="pl-9" placeholder="Search" />
                           </div>
                         </div>
                         {/* Table items will be rendered here */}
@@ -318,12 +313,7 @@ export default function EditorPage() {
                         <div className="border-b p-4">
                           <div className="relative">
                             <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-muted-foreground" />
-                            <Input
-                              className="pl-9"
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              placeholder="Search tables, fields..."
-                              value={searchQuery}
-                            />
+                            <Input className="pl-9" placeholder="Search" />
                           </div>
                         </div>
                         {/* Relation items will be rendered here */}
@@ -344,21 +334,7 @@ export default function EditorPage() {
           <ResizablePanel defaultSize={60} minSize={40}>
             <div className="relative h-full bg-background">
               {/* Canvas content will be rendered here */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <Database className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-                  <h3 className="mb-2 font-semibold text-foreground text-lg">
-                    Start Designing Your Database
-                  </h3>
-                  <p className="mb-6 text-muted-foreground text-sm">
-                    Click "Add Table" to create your first table
-                  </p>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Table
-                  </Button>
-                </div>
-              </div>
+              <Canvas />
 
               {/* Canvas Controls */}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
