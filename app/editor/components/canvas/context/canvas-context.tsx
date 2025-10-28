@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useEventListener, useResizeObserver } from "usehooks-ts";
-import { useTransform } from "./use-transform";
+import { useTransform } from "../hooks";
 
 type Coord = { x?: number; y?: number };
 

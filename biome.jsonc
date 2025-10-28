@@ -4,7 +4,8 @@
   "linter": {
     "rules": {
       "performance": {
-        "noNamespaceImport": "off"
+        "noNamespaceImport": "off",
+        "noBarrelFile": "off"
       },
       "suspicious": {
         "noUnknownAtRules": "off"
