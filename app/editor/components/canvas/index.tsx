@@ -1,8 +1,18 @@
 "use client";
-import { useRef } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 
+const NoSSRTable = dynamic(() => import("./modules/table"), { ssr: false });
 export default function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    // 移除 title 元素以禁用 tooltip
+    const titleElement = svgRef.current?.querySelector("title");
+    if (titleElement) {
+      titleElement.remove();
+    }
+  }, []);
   // const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
   //   console.log("pointer down", event);
   // };
@@ -16,11 +26,12 @@ export default function Canvas() {
     <div className="h-full grow touch-none" id="svg-container">
       <div className="h-full w-full">
         <svg
+          aria-label="Diagram"
           className="absolute h-full w-full touch-none"
-          id="diagram"
           // onPointerDown={handlePointerDown}
           // onPointerMove={handlePointerMove}
           // onPointerUp={handlePointerUp}
+          id="diagram"
           ref={svgRef}
         >
           <title>Diagram</title>
@@ -40,6 +51,7 @@ export default function Canvas() {
             </pattern>
           </defs>
           <rect fill="url(#grid)" height="100%" width="100%" />
+          <NoSSRTable />
         </svg>
       </div>
     </div>
