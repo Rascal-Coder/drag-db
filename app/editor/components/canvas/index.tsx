@@ -185,6 +185,11 @@ export default function Canvas() {
     if (isMouseLeftButton && elementPointerDown.current !== null) {
       handlePointerDownOnElement(ev, elementPointerDown.current);
     }
+    // Reset the pointer-down element when clicking outside tables or after handling
+    // to avoid keeping a stale reference across clicks.
+    if (isMouseLeftButton) {
+      elementPointerDown.current = null;
+    }
   };
   const handlePointerMove = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
