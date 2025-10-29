@@ -48,13 +48,8 @@ export function CanvasContextProvider({
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const transformContext = useTransform();
 
-  if (!transformContext) {
-    throw new Error(
-      "CanvasContextProvider must be used within TransformContextProvider"
-    );
-  }
-
   const { transform } = transformContext;
+
   const canvasSize = useResizeObserver({
     ref: canvasWrapRef as React.RefObject<HTMLElement>,
     box: "content-box",
@@ -73,16 +68,6 @@ export function CanvasContextProvider({
     }),
     [screenSize.x, screenSize.y, transform.zoom]
   );
-  // const viewBox = useMemo(
-  //   () =>
-  //     new DOMRect(
-  //       transform.pan.x - viewBoxSize.x / 2,
-  //       transform.pan.y - viewBoxSize.y / 2,
-  //       viewBoxSize.x,
-  //       viewBoxSize.y
-  //     ),
-  //   [transform.pan.x, transform.pan.y, viewBoxSize.x, viewBoxSize.y]
-  // );
 
   const viewBox = useMemo(
     () => ({

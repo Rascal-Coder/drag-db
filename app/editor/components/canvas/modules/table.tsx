@@ -1,3 +1,5 @@
+"use client";
+
 import {
   EditIcon,
   KeyRound,
@@ -14,46 +16,38 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { type MySQLTypeDef, mysqlTypes } from "@/data/data-type";
-import { cn } from "@/lib/utils";
+import { cn, formatTypeSize, getTypeColor, getTypeDef } from "@/lib/utils";
 
-const getTypeDef = (typeName: string) => mysqlTypes[typeName];
-
-const getTypeColor = (typeDef: MySQLTypeDef | false): string => {
-  if (typeof typeDef === "object" && typeDef && "color" in typeDef) {
-    return typeDef.color;
-  }
-  return "";
+export type TableData = {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  locked: boolean;
+  color: string;
+  fields: {
+    name: string;
+    type: string;
+    default: string;
+    check: string;
+    primary: boolean;
+    unique: boolean;
+    notNull: boolean;
+    increment: boolean;
+    comment: string;
+    id: string;
+    size?: number;
+    precision?: number;
+  }[];
 };
 
-const formatTypeSize = (
-  typeDef: MySQLTypeDef | false,
-  size?: number,
-  precision?: number
-): string => {
-  if (!(typeof typeDef === "object" && typeDef)) {
-    return "";
-  }
-  const def = typeDef;
-  if (def.hasPrecision) {
-    const s = typeof size === "number" ? size : def.defaultSize;
-    const p = precision;
-    if (typeof s === "number" && typeof p === "number") {
-      return `(${s},${p})`;
-    }
-    if (typeof s === "number") {
-      return `(${s})`;
-    }
-    return "";
-  }
-  if (def.isSized) {
-    const s = typeof size === "number" ? size : def.defaultSize;
-    return typeof s === "number" ? `(${s})` : "";
-  }
-  return "";
-};
-
-export default function Table() {
+export default function Table({
+  onPointerDown,
+  tableData,
+}: {
+  onPointerDown: () => void;
+  tableData: TableData;
+}) {
   const [open, setOpen] = useState(false);
   const [hoveredField, setHoveredField] = useState<null | number>(null);
   const lockUnlockTable = () => {
@@ -63,29 +57,39 @@ export default function Table() {
     setOpen(true);
   };
 
-  const mockFields: ReadonlyArray<{
-    name: string;
-    type: string;
-    size?: number;
-    precision?: number;
-    primary?: boolean;
-    notNull?: boolean;
-  }> = [
-    { name: "id", type: "INTEGER", primary: true, notNull: true },
-    { name: "title", type: "VARCHAR", size: 255, notNull: false },
-    { name: "price", type: "DECIMAL", size: 10, precision: 2, notNull: true },
-    { name: "is_active", type: "BOOLEAN", notNull: true },
-    { name: "created_at", type: "DATETIME", notNull: true },
-    { name: "meta", type: "JSON", notNull: true },
-  ];
+  // const mockFields: ReadonlyArray<{
+  //   name: string;
+  //   type: string;
+  //   size?: number;
+  //   precision?: number;
+  //   primary?: boolean;
+  //   notNull?: boolean;
+  // }> = [
+  //   { name: "id", type: "INTEGER", primary: true, notNull: true },
+  //   { name: "title", type: "VARCHAR", size: 255, notNull: false },
+  //   { name: "price", type: "DECIMAL", size: 10, precision: 2, notNull: true },
+  //   { name: "is_active", type: "BOOLEAN", notNull: true },
+  //   { name: "created_at", type: "DATETIME", notNull: true },
+  //   { name: "meta", type: "JSON", notNull: true },
+  // ];
+  const tableFieldHeight = 36;
+  const tableHeaderHeight = 50;
+  const tableColorStripHeight = 7;
+
+  const height =
+    tableData.fields.length * tableFieldHeight +
+    tableHeaderHeight +
+    tableColorStripHeight;
 
   return (
     <foreignObject
       className="group cursor-move rounded-md drop-shadow-lg"
-      height={600}
+      height={height}
+      key={tableData.id}
+      onPointerDown={onPointerDown}
       width={220}
-      x={600}
-      y={300}
+      x={tableData.x}
+      y={tableData.y}
     >
       <div
         className={
@@ -93,14 +97,19 @@ export default function Table() {
         }
         style={{ direction: "ltr" }}
       >
-        <div className="h-[10px] w-full rounded-t-md bg-blue-600" />
+        <div
+          className="h-[10px] w-full rounded-t-md"
+          style={{
+            backgroundColor: tableData.color,
+          }}
+        />
         <div
           className={
             "flex h-[40px] items-center justify-between overflow-hidden border-gray-400 border-b bg-zinc-200 font-bold dark:bg-zinc-900"
           }
         >
           <div className="overflow-hidden text-ellipsis whitespace-nowrap px-3">
-            database table title
+            {tableData.name}
           </div>
           <div className="hidden group-hover:block">
             <div className="mx-2 flex items-center justify-end space-x-1.5">
@@ -141,7 +150,7 @@ export default function Table() {
             </div>
           </div>
         </div>
-        {mockFields.map((field, index) => {
+        {tableData.fields.map((field, index) => {
           const typeDef = getTypeDef(field.type);
           const typeColor = getTypeColor(typeDef);
           const sizeText = formatTypeSize(typeDef, field.size, field.precision);
@@ -150,7 +159,8 @@ export default function Table() {
               className={cn(
                 "group flex h-[36px] w-full items-center justify-between gap-1 overflow-hidden px-2 py-1",
                 "border-gray-400 border-b",
-                index === mockFields.length - 1 && "rounded-b-md border-0",
+                index === tableData.fields.length - 1 &&
+                  "rounded-b-md border-0",
                 // "bg-(--db-table-bg)",
                 // hoveredField === index && "text-zinc-400"
                 hoveredField === index

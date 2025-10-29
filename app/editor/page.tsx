@@ -353,7 +353,7 @@ export default function EditorPage() {
             <ResizablePanel defaultSize={60} minSize={40}>
               <div className="relative h-full bg-background">
                 {/* Canvas content will be rendered here */}
-                <CanvasContextProvider>
+                <CanvasContextProvider className="h-full w-full">
                   <Canvas />
                 </CanvasContextProvider>
 
