@@ -1,5 +1,4 @@
 "use client";
-
 import {
   AlignCenterIcon,
   Database,
@@ -19,7 +18,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -53,9 +52,42 @@ import Canvas from "./components/canvas";
 import { CanvasContextProvider } from "./components/canvas/context/canvas-context";
 import TransformContextProvider from "./components/canvas/context/transform-context";
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return (
+      <Button aria-hidden className="h-8 w-8" size="icon" variant="ghost">
+        <Moon className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          className="h-8 w-8"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          size="icon"
+          variant="ghost"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 export default function EditorPage() {
   const [activeTab, setActiveTab] = useState("tables");
-  const { theme, setTheme } = useTheme();
 
   return (
     <TransformContextProvider>
@@ -186,25 +218,7 @@ export default function EditorPage() {
             <div className="mx-1 h-6 w-px bg-border" />
 
             {/* Theme Toggle */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="h-8 w-8"
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  size="icon"
-                  variant="ghost"
-                >
-                  {theme === "dark" ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {theme === "dark" ? "Light Mode" : "Dark Mode"}
-              </TooltipContent>
-            </Tooltip>
+            <ThemeToggle />
           </TooltipProvider>
         </div>
 

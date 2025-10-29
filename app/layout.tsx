@@ -28,7 +28,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} h-full min-h-full`}
       >
-        <ThemeProvider defaultTheme="dark">{children}</ThemeProvider>
+        <ThemeProvider
+          defaultTheme="dark"
+          disableTransitionOnChange
+          enableSystem={false}
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
