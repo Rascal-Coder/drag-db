@@ -3,6 +3,13 @@ import { twMerge } from "tailwind-merge";
 import {
   ARC_BASE_RADIUS,
   DEFAULT_TABLE_WIDTH,
+  HEX_B_END,
+  HEX_B_START,
+  HEX_G_END,
+  HEX_G_START,
+  HEX_LENGTH,
+  HEX_R_END,
+  HEX_R_START,
   LINE_EPSILON,
   MIN_RADIUS,
   RADIUS_DIVISOR,
@@ -79,6 +86,7 @@ type Relationship = {
   endTable: { x: number; y: number };
   startFieldIndex: number;
   endFieldIndex: number;
+  controlPoints?: { x: number; y: number }[];
 };
 
 type PathParamsBase = {
@@ -189,4 +197,16 @@ export function calcPath(
     return buildPathUpward({ x1, y1, x2, y2, width, radius, midX, endX });
   }
   return buildPathDownward({ x1, y1, x2, y2, width, radius, midX, endX });
+}
+
+// hex2rgba: 简单将 #RRGGBB 转换为 rgba(r,g,b,a)
+// 仅支持 #RRGGBB，不含alpha和缩写。若格式错直接返回原色。
+export function hex2rgba(hex: string, alpha: number): string {
+  if (!hex.startsWith("#") || hex.length !== HEX_LENGTH) {
+    return hex;
+  }
+  const r = Number.parseInt(hex.slice(HEX_R_START, HEX_R_END), 16);
+  const g = Number.parseInt(hex.slice(HEX_G_START, HEX_G_END), 16);
+  const b = Number.parseInt(hex.slice(HEX_B_START, HEX_B_END), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }

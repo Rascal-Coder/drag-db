@@ -9,7 +9,21 @@ const MIN_RADIUS = 2;
 const RADIUS_DIVISOR = 3;
 const DEFAULT_TABLE_WIDTH = 220;
 
+const HEX_R_START = 1,
+  HEX_R_END = 3; // R位置
+const HEX_G_START = 3,
+  HEX_G_END = 5; // G位置
+const HEX_B_START = 5,
+  HEX_B_END = 7; // B位置
+const HEX_LENGTH = 7; // #RRGGBB
 export {
+  HEX_LENGTH,
+  HEX_R_START,
+  HEX_R_END,
+  HEX_G_START,
+  HEX_G_END,
+  HEX_B_START,
+  HEX_B_END,
   TABLE_FIELD_HEIGHT,
   TABLE_HEADER_HEIGHT,
   TABLE_COLOR_STRIP_HEIGHT,

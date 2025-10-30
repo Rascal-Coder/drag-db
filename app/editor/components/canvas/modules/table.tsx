@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Trash,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,21 @@ import {
   TABLE_FIELD_HEIGHT,
   TABLE_HEADER_HEIGHT,
 } from "@/constants";
-import { cn, formatTypeSize, getTypeColor, getTypeDef } from "@/lib/utils";
+import {
+  cn,
+  formatTypeSize,
+  getTypeColor,
+  getTypeDef,
+  hex2rgba,
+} from "@/lib/utils";
+
+// 主题相关 alpha
+const DARK_MAIN_BG_ALPHA = 0.8; // dark下主色透明度
+const STRIPE_WHITE_ALPHA_DARK = 0.18;
+const STRIPE_WHITE_ALPHA_LIGHT = 0.3;
+// 斜纹宽度
+const STRIPE_WIDTH = 6; // px
+const STRIPE_BLOCK_WIDTH = 12; // px
 
 export type FiledData = {
   name: string;
@@ -108,6 +123,19 @@ export default function Table({
     TABLE_HEADER_HEIGHT +
     TABLE_COLOR_STRIP_HEIGHT;
 
+  // 获取当前主题，用于透明度分支控制
+  const { theme } = useTheme();
+
+  // dark 模式下主色更透明，white 条纹 alpha 也降至 0.18
+  const mainBg =
+    theme === "dark"
+      ? hex2rgba(tableData.color, DARK_MAIN_BG_ALPHA)
+      : tableData.color;
+  const stripeWhite =
+    theme === "dark"
+      ? `rgba(255,255,255,${STRIPE_WHITE_ALPHA_DARK})`
+      : `rgba(255,255,255,${STRIPE_WHITE_ALPHA_LIGHT})`;
+
   return (
     <foreignObject
       className="group cursor-move rounded-md drop-shadow-lg"
@@ -127,7 +155,7 @@ export default function Table({
         <div
           className="h-[10px] w-full rounded-t-md"
           style={{
-            background: `repeating-linear-gradient(-45deg, ${tableData.color}, ${tableData.color} 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 12px)`,
+            background: `repeating-linear-gradient(-45deg, ${mainBg}, ${mainBg} ${STRIPE_WIDTH}px, ${stripeWhite} ${STRIPE_WIDTH}px, ${stripeWhite} ${STRIPE_BLOCK_WIDTH}px)`,
           }}
         />
         <div
