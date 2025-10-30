@@ -230,9 +230,9 @@ export default function EditorPage() {
               {/* Left Sidebar */}
               <ResizablePanel
                 className="border-r bg-muted/30 transition-all duration-300"
-                defaultSize={15}
+                defaultSize={20}
                 maxSize={30}
-                minSize={15}
+                minSize={20}
               >
                 <div className="flex h-full flex-col">
                   {/* Tabs */}
@@ -352,7 +352,7 @@ export default function EditorPage() {
               <ResizableHandle withHandle />
 
               {/* Main Canvas Area */}
-              <ResizablePanel defaultSize={60} minSize={40}>
+              <ResizablePanel defaultSize={80} maxSize={80} minSize={70}>
                 <div className="relative h-full bg-background">
                   {/* Canvas content will be rendered here */}
                   <CanvasContextProvider className="h-full w-full">

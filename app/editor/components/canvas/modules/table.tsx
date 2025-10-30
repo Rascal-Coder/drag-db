@@ -127,7 +127,7 @@ export default function Table({
         <div
           className="h-[10px] w-full rounded-t-md"
           style={{
-            backgroundColor: tableData.color,
+            background: `repeating-linear-gradient(-45deg, ${tableData.color}, ${tableData.color} 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 12px)`,
           }}
         />
         <div
