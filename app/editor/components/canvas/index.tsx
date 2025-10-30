@@ -1,71 +1,110 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useCanvas } from "./hooks";
-import Table, { type TableData } from "./modules/table";
+import { nanoid } from "nanoid";
+import { useTheme } from "next-themes";
+import { useEffect, useRef, useState } from "react";
+import { Cardinality, Constraint, ObjectType } from "@/enums";
+import { isSameElement } from "@/lib/utils";
+import { useCanvas, useDiagram } from "./hooks";
+import Relationship from "./modules/relationship";
+import Table, { type FiledData, type TableData } from "./modules/table";
 
-const ObjectType = {
-  NONE: 0,
-  TABLE: 1,
-  AREA: 2,
-  NOTE: 3,
-  RELATIONSHIP: 4,
-  TYPE: 5,
-};
-const mockTableData = {
-  id: "VaOSMG72lrWkujgFO6FB-",
-  name: "table_VaOSMG72lrWkujgFO6FB-",
-  x: 0,
-  y: 0,
-  locked: false,
-  fields: [
-    {
-      name: "id",
-      type: "INTEGER",
-      default: "",
-      check: "",
-      primary: true,
-      unique: true,
-      notNull: true,
-      increment: true,
-      comment: "",
-      id: "SRy51ecVa9axZGMagBQhE",
-    },
-    {
-      id: "1SktdmYhgkcBluMlXRhdS",
-      name: "title",
-      type: "VARCHAR",
-      default: "test title",
-      check: "",
-      primary: false,
-      unique: false,
-      notNull: false,
-      increment: false,
-      comment: "",
-      size: 255,
-    },
-  ],
-  color: "#155dfc",
-};
-const isSameElement = (
-  el1: {
-    id: string;
-    type: number;
+const mockTables = [
+  {
+    id: "VaOSMG72lrWkujgFO6FB-",
+    name: "table_VaOSMG72lrWkujgFO6FB-",
+    x: 0,
+    y: 0,
+    locked: false,
+    fields: [
+      {
+        name: "id",
+        type: "INTEGER",
+        default: "",
+        check: "",
+        primary: true,
+        unique: true,
+        notNull: true,
+        increment: true,
+        comment: "",
+        id: "SRy51ecVa9axZGMagBQhE",
+      },
+      {
+        id: "1SktdmYhgkcBluMlXRhdS",
+        name: "title",
+        type: "VARCHAR",
+        default: "test title",
+        check: "",
+        primary: false,
+        unique: false,
+        notNull: false,
+        increment: false,
+        comment: "",
+        size: 255,
+      },
+    ],
+    color: "#155dfc",
   },
-  el2: {
-    id: string;
-    type: number;
-  }
-) => el1.id === el2.id && el1.type === el2.type;
+  {
+    id: "VaOSMG72lrWkujgFO6FX-",
+    name: "table_VaOSMG72lrWkujgFO6FX-",
+    x: -290,
+    y: -150,
+    locked: false,
+    fields: [
+      {
+        name: "id",
+        type: "INTEGER",
+        default: "",
+        check: "",
+        primary: true,
+        unique: true,
+        notNull: true,
+        increment: true,
+        comment: "",
+        id: "SRy51ecVa9axZGMagBQhX",
+      },
+      {
+        id: "1SktdmYhgkcBluMlXRhdX",
+        name: "title",
+        type: "VARCHAR",
+        default: "test title",
+        check: "",
+        primary: false,
+        unique: false,
+        notNull: false,
+        increment: false,
+        comment: "",
+        size: 255,
+      },
+    ],
+    color: "#ea22bc",
+  },
+];
+const gridSize = 24;
 export default function Canvas() {
-  const [tables, setTables] = useState([mockTableData]);
-  const canvasContextValue = useCanvas();
+  const { tables, setTables, updateTable, addRelationship, relationships } =
+    useDiagram();
+  const { theme } = useTheme();
+  useEffect(() => {
+    setTables(mockTables);
+  }, [setTables]);
+
+  const [linking, setLinking] = useState(false);
   const {
     canvas: { viewBox },
     pointer,
-  } = canvasContextValue;
+  } = useCanvas();
+
   const canvasRef = useRef<SVGSVGElement>(null);
-  const notDragging = {
+  const notDragging: {
+    id: string;
+    type: ObjectType;
+    grabOffset: {
+      x: number;
+      y: number;
+    };
+  } = {
     id: "",
     type: ObjectType.NONE,
     grabOffset: { x: 0, y: 0 }, //抓取偏移量
@@ -86,7 +125,25 @@ export default function Canvas() {
       currentCoords.x !== initialCoords.x || currentCoords.y !== initialCoords.y
     );
   };
-  const [_, setSelectedElement] = useState({
+
+  const [hoveredTable, setHoveredTable] = useState({
+    tableId: "",
+    fieldId: "",
+  });
+  const [linkingLine, setLinkingLine] = useState({
+    startTableId: "",
+    startFieldId: "",
+    endTableId: "",
+    endFieldId: "",
+    startX: 0,
+    startY: 0,
+    endX: 0,
+    endY: 0,
+  });
+  const [_, setSelectedElement] = useState<{
+    id: string;
+    type: ObjectType;
+  }>({
     id: "",
     type: ObjectType.NONE,
   });
@@ -115,19 +172,8 @@ export default function Canvas() {
   // at the moment, and shouldn't be a part of the state
   const elementPointerDown = useRef<null | {
     element: TableData;
-    type: number;
+    type: ObjectType;
   }>(null);
-  const updateTable = (
-    id: string,
-    updatedValues: {
-      x: number;
-      y: number;
-    }
-  ) => {
-    setTables((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updatedValues } : t))
-    );
-  };
   const handlePointerDownOnElement = (
     ev: React.PointerEvent<SVGSVGElement>,
     {
@@ -135,7 +181,7 @@ export default function Canvas() {
       type,
     }: {
       element: TableData;
-      type: number;
+      type: ObjectType;
     }
   ): void => {
     if (!ev.isPrimary) {
@@ -196,6 +242,14 @@ export default function Canvas() {
       return;
     }
 
+    if (linking) {
+      setLinkingLine({
+        ...linkingLine,
+        endX: pointer.spaces.diagram.x ?? 0,
+        endY: pointer.spaces.diagram.y ?? 0,
+      });
+      return;
+    }
     if (!isDragging()) {
       return;
     }
@@ -246,6 +300,25 @@ export default function Canvas() {
     return;
   };
 
+  const getCardinality = (startField: FiledData, endField: FiledData) => {
+    const startIsUnique = startField.unique || startField.primary;
+    const endIsUnique = endField.unique || endField.primary;
+
+    if (startIsUnique && endIsUnique) {
+      return Cardinality.ONE_TO_ONE;
+    }
+
+    if (startIsUnique && !endIsUnique) {
+      return Cardinality.ONE_TO_MANY;
+    }
+
+    if (!startIsUnique && endIsUnique) {
+      return Cardinality.MANY_TO_ONE;
+    }
+
+    return Cardinality.ONE_TO_ONE;
+  };
+
   const handlePointerUp = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
       return;
@@ -259,7 +332,68 @@ export default function Canvas() {
       );
     }
     setDragging(notDragging);
+    if (linking) {
+      handleLinking();
+    }
+    setLinking(false);
   };
+
+  const handleLinking = () => {
+    if (!hoveredTable.tableId) {
+      return;
+    }
+    if (!hoveredTable.fieldId) {
+      return;
+    }
+    const startTable = tables.find((t) => t.id === linkingLine.startTableId);
+    if (!startTable) {
+      return;
+    }
+    const { fields: startTableFields, name: startTableName } = startTable;
+    const startField = startTableFields.find(
+      (f) => f.id === linkingLine.startFieldId
+    );
+    const endTable = tables.find((t) => t.id === hoveredTable.tableId);
+    if (!endTable) {
+      return;
+    }
+    const { fields: endTableFields, name: endTableName } = endTable;
+    const endField = endTableFields.find((f) => f.id === hoveredTable.fieldId);
+    if (
+      linkingLine.startTableId === hoveredTable.tableId &&
+      linkingLine.startFieldId === hoveredTable.fieldId
+    ) {
+      return;
+    }
+    if (startField && endField) {
+      const cardinality = getCardinality(startField, endField);
+      const newRelationship = {
+        ...linkingLine,
+        cardinality,
+        endTableId: hoveredTable.tableId,
+        endFieldId: hoveredTable.fieldId,
+        updateConstraint: Constraint.NONE,
+        deleteConstraint: Constraint.NONE,
+        name: `fk_${startTableName}_${startField.name}_${endTableName}`,
+        id: nanoid(),
+      };
+
+      const {
+        startX: _startX,
+        startY: _startY,
+        endX: _endX,
+        endY: _endY,
+        ...cleanedRelationship
+      } = newRelationship;
+
+      addRelationship(cleanedRelationship);
+    }
+  };
+  const handleGripField = () => {
+    setDragging(notDragging);
+    setLinking(true);
+  };
+
   return (
     <div className="h-full grow touch-none" id="svg-container">
       <div
@@ -281,13 +415,13 @@ export default function Canvas() {
           <title>Diagram</title>
           <defs>
             <pattern
-              height={24}
+              height={gridSize}
               id="grid"
               patternUnits="userSpaceOnUse"
-              width={24}
+              width={gridSize}
             >
               <path
-                d="M 24 0 L 0 0 0 24"
+                d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
                 fill="none"
                 stroke="var(--color-accent)"
                 strokeWidth="0.5"
@@ -301,8 +435,12 @@ export default function Canvas() {
             x={viewBox.left}
             y={viewBox.top}
           />
+          {relationships.map((e) => (
+            <Relationship data={e} key={e.id} />
+          ))}
           {tables.map((table) => (
             <Table
+              handleGripField={handleGripField}
               key={table.id}
               onPointerDown={() => {
                 elementPointerDown.current = {
@@ -310,9 +448,20 @@ export default function Canvas() {
                   type: ObjectType.TABLE,
                 };
               }}
+              setHoveredTable={setHoveredTable}
+              setLinkingLine={setLinkingLine}
               tableData={table}
             />
           ))}
+          {linking && (
+            <path
+              className="pointer-events-none touch-none"
+              d={`M ${linkingLine.startX} ${linkingLine.startY} C ${(linkingLine.startX + linkingLine.endX) / 2} ${linkingLine.startY}, ${(linkingLine.startX + linkingLine.endX) / 2} ${linkingLine.endY}, ${linkingLine.endX} ${linkingLine.endY}`}
+              fill="none"
+              stroke={theme === "dark" ? "#dfe3eb" : "#b1b5be"}
+              strokeDasharray="8,8"
+            />
+          )}
         </svg>
       </div>
     </div>

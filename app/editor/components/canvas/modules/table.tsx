@@ -7,7 +7,7 @@ import {
   MoreHorizontal,
   Trash,
 } from "lucide-react";
-import { useState } from "react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,8 +16,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  CONNECTION_POINT_OFFSET_X,
+  CONNECTION_POINT_OFFSET_Y,
+  TABLE_COLOR_STRIP_HEIGHT,
+  TABLE_FIELD_HEIGHT,
+  TABLE_HEADER_HEIGHT,
+} from "@/constants";
 import { cn, formatTypeSize, getTypeColor, getTypeDef } from "@/lib/utils";
 
+export type FiledData = {
+  name: string;
+  type: string;
+  default: string;
+  check: string;
+  primary: boolean;
+  unique: boolean;
+  notNull: boolean;
+  increment: boolean;
+  comment: string;
+  id: string;
+  size?: number;
+  precision?: number;
+};
 export type TableData = {
   id: string;
   name: string;
@@ -25,28 +46,37 @@ export type TableData = {
   y: number;
   locked: boolean;
   color: string;
-  fields: {
-    name: string;
-    type: string;
-    default: string;
-    check: string;
-    primary: boolean;
-    unique: boolean;
-    notNull: boolean;
-    increment: boolean;
-    comment: string;
-    id: string;
-    size?: number;
-    precision?: number;
-  }[];
+  fields: FiledData[];
 };
 
 export default function Table({
   onPointerDown,
   tableData,
+  setLinkingLine,
+  handleGripField,
+  setHoveredTable,
 }: {
+  handleGripField: () => void;
   onPointerDown: () => void;
   tableData: TableData;
+  setHoveredTable: Dispatch<
+    SetStateAction<{
+      tableId: string;
+      fieldId: string;
+    }>
+  >;
+  setLinkingLine: Dispatch<
+    SetStateAction<{
+      startTableId: string;
+      startFieldId: string;
+      endTableId: string;
+      endFieldId: string;
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }>
+  >;
 }) {
   const [open, setOpen] = useState(false);
   const [hoveredField, setHoveredField] = useState<null | number>(null);
@@ -72,14 +102,11 @@ export default function Table({
   //   { name: "created_at", type: "DATETIME", notNull: true },
   //   { name: "meta", type: "JSON", notNull: true },
   // ];
-  const tableFieldHeight = 36;
-  const tableHeaderHeight = 50;
-  const tableColorStripHeight = 7;
 
   const height =
-    tableData.fields.length * tableFieldHeight +
-    tableHeaderHeight +
-    tableColorStripHeight;
+    tableData.fields.length * TABLE_FIELD_HEIGHT +
+    TABLE_HEADER_HEIGHT +
+    TABLE_COLOR_STRIP_HEIGHT;
 
   return (
     <foreignObject
@@ -179,13 +206,48 @@ export default function Table({
                 }
 
                 setHoveredField(index);
+                setHoveredTable({
+                  tableId: tableData.id,
+                  fieldId: field.id,
+                });
               }}
               onPointerLeave={() => {
                 setHoveredField(null);
+                setHoveredTable({
+                  tableId: "",
+                  fieldId: "",
+                });
               }}
             >
               <div className={cn("flex items-center gap-2 overflow-hidden")}>
-                <div className="h-[10px] w-[10px] shrink-0 rounded-full border-2 border-transparent bg-[#2f68adcc] transition-all hover:cursor-crosshair hover:border-[#2f68adcc] hover:bg-transparent" />
+                <div
+                  className="h-[10px] w-[10px] shrink-0 rounded-full border-2 border-transparent bg-[#2f68adcc] transition-all hover:cursor-crosshair hover:border-[#2f68adcc] hover:bg-transparent"
+                  onPointerDown={(e) => {
+                    if (!e.isPrimary) {
+                      return;
+                    }
+                    handleGripField();
+                    setLinkingLine((prev) => ({
+                      ...prev,
+                      startFieldId: field.id,
+                      startTableId: tableData.id,
+                      startX: tableData.x + CONNECTION_POINT_OFFSET_X,
+                      startY:
+                        tableData.y +
+                        index * TABLE_FIELD_HEIGHT +
+                        TABLE_HEADER_HEIGHT +
+                        TABLE_COLOR_STRIP_HEIGHT +
+                        CONNECTION_POINT_OFFSET_Y,
+                      endX: tableData.x + CONNECTION_POINT_OFFSET_X,
+                      endY:
+                        tableData.y +
+                        index * TABLE_FIELD_HEIGHT +
+                        TABLE_HEADER_HEIGHT +
+                        TABLE_COLOR_STRIP_HEIGHT +
+                        CONNECTION_POINT_OFFSET_Y,
+                    }));
+                  }}
+                />
                 <span className="overflow-hidden text-ellipsis whitespace-nowrap">
                   {field.name}
                 </span>
