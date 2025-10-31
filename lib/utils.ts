@@ -2,7 +2,6 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import {
   ARC_BASE_RADIUS,
-  DEFAULT_TABLE_WIDTH,
   HEX_B_END,
   HEX_B_START,
   HEX_G_END,
@@ -11,7 +10,6 @@ import {
   HEX_R_END,
   HEX_R_START,
   LINE_EPSILON,
-  MIN_RADIUS,
   RADIUS_DIVISOR,
   TABLE_FIELD_HEIGHT,
   TABLE_HEADER_HEIGHT,
@@ -89,73 +87,9 @@ type Relationship = {
   controlPoints?: { x: number; y: number }[];
 };
 
-type PathParamsBase = {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  width: number;
-};
-
-type HorizontalParams = PathParamsBase & { zoom: number };
-type CurvedParams = PathParamsBase & {
-  radius: number;
-  midX: number;
-  endX: number;
-};
-
-function tryBuildNearlyHorizontalPath(p: HorizontalParams): string | null {
-  const { x1, y1, x2, y2, width, zoom } = p;
-  if (Math.abs(y1 - y2) <= TABLE_FIELD_HEIGHT * zoom) {
-    const radius = Math.abs(y2 - y1) / RADIUS_DIVISOR;
-    if (radius <= MIN_RADIUS) {
-      if (x1 + width <= x2) {
-        return `M ${x1 + width} ${y1} L ${x2} ${y2 + LINE_EPSILON}`;
-      }
-      if (x2 + width < x1) {
-        return `M ${x1} ${y1} L ${x2 + width} ${y2 + LINE_EPSILON}`;
-      }
-    }
-  }
-  return null;
-}
-
-function buildPathUpward(p: CurvedParams): string {
-  const { x1, y1, x2, y2, width, radius, midX, endX } = p;
-  const isLeftToRight = x1 + width <= x2;
-  const x2OverlapLeft = x2 <= x1 + width && x1 <= x2;
-  const x2OverlapRight = x2 + width >= x1 && x2 + width <= x1 + width;
-
-  if (isLeftToRight) {
-    return `M ${x1 + width} ${y1} L ${midX - radius} ${y1} A ${radius} ${radius} 0 0 1 ${midX} ${y1 + radius} L ${midX} ${y2 - radius} A ${radius} ${radius} 0 0 0 ${midX + radius} ${y2} L ${endX} ${y2}`;
-  }
-  if (x2OverlapLeft) {
-    return `M ${x1 + width} ${y1} L ${x2 + width} ${y1} A ${radius} ${radius} 0 0 1 ${x2 + width + radius} ${y1 + radius} L ${x2 + width + radius} ${y2 - radius} A ${radius} ${radius} 0 0 1 ${x2 + width} ${y2} L ${x2 + width} ${y2}`;
-  }
-  if (x2OverlapRight) {
-    return `M ${x1} ${y1} L ${x2 - radius} ${y1} A ${radius} ${radius} 0 0 0 ${x2 - radius - radius} ${y1 + radius} L ${x2 - radius - radius} ${y2 - radius} A ${radius} ${radius} 0 0 0 ${x2 - radius} ${y2} L ${x2} ${y2}`;
-  }
-  return `M ${x1} ${y1} L ${midX + radius} ${y1} A ${radius} ${radius} 0 0 0 ${midX} ${y1 + radius} L ${midX} ${y2 - radius} A ${radius} ${radius} 0 0 1 ${midX - radius} ${y2} L ${endX} ${y2}`;
-}
-
-function buildPathDownward(p: CurvedParams): string {
-  const { x1, y1, x2, y2, width, radius, midX, endX } = p;
-  const isLeftToRight = x1 + width <= x2;
-  if (isLeftToRight) {
-    return `M ${x1 + width} ${y1} L ${midX - radius} ${y1} A ${radius} ${radius} 0 0 0 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${midX + radius} ${y2} L ${endX} ${y2}`;
-  }
-  if (x1 + width >= x2 && x1 + width <= x2 + width) {
-    return `M ${x1} ${y1} L ${x1 - radius - radius} ${y1} A ${radius} ${radius} 0 0 1 ${x1 - radius - radius - radius} ${y1 - radius} L ${x1 - radius - radius - radius} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${x1 - radius - radius} ${y2} L ${endX} ${y2}`;
-  }
-  if (x1 >= x2 && x1 <= x2 + width) {
-    return `M ${x1 + width} ${y1} L ${x1 + width + radius} ${y1} A ${radius} ${radius} 0 0 0 ${x1 + width + radius + radius} ${y1 - radius} L ${x1 + width + radius + radius} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${x1 + width + radius} ${y2} L ${x2 + width} ${y2}`;
-  }
-  return `M ${x1} ${y1} L ${midX + radius} ${y1} A ${radius} ${radius} 0 0 1 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${midX - radius} ${y2} L ${endX} ${y2}`;
-}
-
 export function calcPath(
   r: Relationship | undefined,
-  tableWidth = DEFAULT_TABLE_WIDTH,
+  tableWidth = 200,
   zoom = 1
 ): string {
   if (!r) {
@@ -163,40 +97,81 @@ export function calcPath(
   }
   const width = tableWidth * zoom;
 
-  const x1 = r.startTable.x;
-  const y1 =
-    r.startTable.y +
-    r.startFieldIndex * TABLE_FIELD_HEIGHT +
+  const computeFieldCenterY = (tableY: number, fieldIndex: number) =>
+    tableY +
+    fieldIndex * TABLE_FIELD_HEIGHT +
     TABLE_HEADER_HEIGHT +
     TABLE_FIELD_HEIGHT / 2;
 
+  const x1 = r.startTable.x;
+  const y1 = computeFieldCenterY(r.startTable.y, r.startFieldIndex);
+
   const x2 = r.endTable.x;
-  const y2 =
-    r.endTable.y +
-    r.endFieldIndex * TABLE_FIELD_HEIGHT +
-    TABLE_HEADER_HEIGHT +
-    TABLE_FIELD_HEIGHT / 2;
+  const y2 = computeFieldCenterY(r.endTable.y, r.endFieldIndex);
 
   const midX = (x2 + x1 + width) / 2;
   const endX = x2 + width < x1 ? x2 + width : x2;
 
-  const horizontal = tryBuildNearlyHorizontalPath({
-    x1,
-    y1,
-    x2,
-    y2,
-    width,
-    zoom,
-  });
-  if (horizontal) {
-    return horizontal;
+  const tryStraightLineCase = () => {
+    if (Math.abs(y1 - y2) > TABLE_FIELD_HEIGHT * zoom) {
+      return "";
+    }
+    const radiusLocal = Math.abs(y2 - y1) / RADIUS_DIVISOR;
+    if (radiusLocal > 2) {
+      return "";
+    }
+    if (x1 + width <= x2) {
+      return `M ${x1 + width} ${y1} L ${x2} ${y2 + LINE_EPSILON}`;
+    }
+    if (x2 + width < x1) {
+      return `M ${x1} ${y1} L ${x2 + width} ${y2 + LINE_EPSILON}`;
+    }
+    return "";
+  };
+
+  const radius = (() => {
+    if (Math.abs(y1 - y2) <= TABLE_FIELD_HEIGHT * zoom) {
+      const dynamic = Math.abs(y2 - y1) / RADIUS_DIVISOR;
+      return dynamic > 2 ? dynamic : ARC_BASE_RADIUS * zoom;
+    }
+    return ARC_BASE_RADIUS * zoom;
+  })();
+
+  const straight = tryStraightLineCase();
+  if (straight) {
+    return straight;
   }
 
-  const radius = ARC_BASE_RADIUS * zoom;
-  if (y1 <= y2) {
-    return buildPathUpward({ x1, y1, x2, y2, width, radius, midX, endX });
-  }
-  return buildPathDownward({ x1, y1, x2, y2, width, radius, midX, endX });
+  const doubleRadius = 2 * radius;
+  // biome-ignore lint/style/noMagicNumbers: false
+  const threeRadius = 3 * radius;
+  const pathWhenYIncreasing = () => {
+    if (x1 + width <= x2) {
+      return `M ${x1 + width} ${y1} L ${midX - radius} ${y1} A ${radius} ${radius} 0 0 1 ${midX} ${y1 + radius} L ${midX} ${y2 - radius} A ${radius} ${radius} 0 0 0 ${midX + radius} ${y2} L ${endX} ${y2}`;
+    }
+    if (x2 <= x1 + width && x1 <= x2) {
+      return `M ${x1 + width} ${y1} L ${x2 + width} ${y1} A ${radius} ${radius} 0 0 1 ${x2 + width + radius} ${y1 + radius} L ${x2 + width + radius} ${y2 - radius} A ${radius} ${radius} 0 0 1 ${x2 + width} ${y2} L ${x2 + width} ${y2}`;
+    }
+    if (x2 + width >= x1 && x2 + width <= x1 + width) {
+      return `M ${x1} ${y1} L ${x2 - radius} ${y1} A ${radius} ${radius} 0 0 0 ${x2 - doubleRadius} ${y1 + radius} L ${x2 - doubleRadius} ${y2 - radius} A ${radius} ${radius} 0 0 0 ${x2 - radius} ${y2} L ${x2} ${y2}`;
+    }
+    return `M ${x1} ${y1} L ${midX + radius} ${y1} A ${radius} ${radius} 0 0 0 ${midX} ${y1 + radius} L ${midX} ${y2 - radius} A ${radius} ${radius} 0 0 1 ${midX - radius} ${y2} L ${endX} ${y2}`;
+  };
+
+  const pathWhenYDecreasing = () => {
+    if (x1 + width <= x2) {
+      return `M ${x1 + width} ${y1} L ${midX - radius} ${y1} A ${radius} ${radius} 0 0 0 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${midX + radius} ${y2} L ${endX} ${y2}`;
+    }
+    if (x1 + width >= x2 && x1 + width <= x2 + width) {
+      return `M ${x1} ${y1} L ${x1 - doubleRadius} ${y1} A ${radius} ${radius} 0 0 1 ${x1 - radius - doubleRadius} ${y1 - radius} L ${x1 - threeRadius} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${x1 - doubleRadius} ${y2} L ${endX} ${y2}`;
+    }
+    if (x1 >= x2 && x1 <= x2 + width) {
+      return `M ${x1 + width} ${y1} L ${x1 + width + radius} ${y1} A ${radius} ${radius} 0 0 0 ${x1 + width + doubleRadius} ${y1 - radius} L ${x1 + width + doubleRadius} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${x1 + width + radius} ${y2} L ${x2 + width} ${y2}`;
+    }
+    return `M ${x1} ${y1} L ${midX + radius} ${y1} A ${radius} ${radius} 0 0 1 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${midX - radius} ${y2} L ${endX} ${y2}`;
+  };
+
+  return y1 <= y2 ? pathWhenYIncreasing() : pathWhenYDecreasing();
 }
 
 // hex2rgba: 简单将 #RRGGBB 转换为 rgba(r,g,b,a)
