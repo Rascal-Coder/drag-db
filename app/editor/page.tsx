@@ -52,6 +52,8 @@ import Canvas from "./components/canvas";
 import { CanvasContextProvider } from "./components/canvas/context/canvas-context";
 import DiagramContextProvider from "./components/canvas/context/diagram-context";
 import TransformContextProvider from "./components/canvas/context/transform-context";
+import { useDiagram, useTransform } from "./components/canvas/hooks";
+import type { TableData } from "./components/canvas/modules/table";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -86,6 +88,30 @@ function ThemeToggle() {
       </TooltipContent>
     </Tooltip>
   );
+}
+function getTablesCenter(tables: TableData[]): { x: number; y: number } | null {
+  if (!tables.length) {
+    return null;
+  }
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const t of tables) {
+    if (t.x < minX) {
+      minX = t.x;
+    }
+    if (t.x > maxX) {
+      maxX = t.x;
+    }
+    if (t.y < minY) {
+      minY = t.y;
+    }
+    if (t.y > maxY) {
+      maxY = t.y;
+    }
+  }
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 }
 export default function EditorPage() {
   const [activeTab, setActiveTab] = useState("tables");
@@ -390,13 +416,7 @@ export default function EditorPage() {
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            className="h-8 w-8"
-                            size="icon"
-                            variant="outline"
-                          >
-                            <AlignCenterIcon className="h-4 w-4" />
-                          </Button>
+                          <CenterViewButton className="h-8 w-8" />
                         </TooltipTrigger>
                         <TooltipContent>Center View</TooltipContent>
                       </Tooltip>
@@ -422,5 +442,23 @@ export default function EditorPage() {
         </div>
       </TransformContextProvider>
     </DiagramContextProvider>
+  );
+}
+function CenterViewButton({ className }: { className?: string }) {
+  const { tables } = useDiagram();
+  const { setTransform } = useTransform();
+  const onClick = () => {
+    const center = getTablesCenter(tables);
+    setTransform((prev) => ({ ...prev, pan: center ?? { x: 0, y: 0 } }));
+  };
+  return (
+    <Button
+      className={className}
+      onClick={onClick}
+      size="icon"
+      variant="outline"
+    >
+      <AlignCenterIcon className="h-4 w-4" />
+    </Button>
   );
 }
