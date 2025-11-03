@@ -18,7 +18,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { type ComponentPropsWithoutRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -444,19 +444,27 @@ export default function EditorPage() {
     </DiagramContextProvider>
   );
 }
-function CenterViewButton({ className }: { className?: string }) {
+function CenterViewButton({
+  className,
+  onClick: onClickProp,
+  ...props
+}: ComponentPropsWithoutRef<typeof Button>) {
   const { tables } = useDiagram();
   const { setTransform } = useTransform();
-  const onClick = () => {
+  const handleClick: NonNullable<
+    NonNullable<ComponentPropsWithoutRef<typeof Button>["onClick"]>
+  > = (event) => {
+    onClickProp?.(event);
     const center = getTablesCenter(tables);
     setTransform((prev) => ({ ...prev, pan: center ?? { x: 0, y: 0 } }));
   };
   return (
     <Button
       className={className}
-      onClick={onClick}
+      onClick={handleClick}
       size="icon"
       variant="outline"
+      {...props}
     >
       <AlignCenterIcon className="h-4 w-4" />
     </Button>
