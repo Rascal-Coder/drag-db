@@ -2,10 +2,12 @@
 
 import { nanoid } from "nanoid";
 import { useTheme } from "next-themes";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
+import { useEventListener } from "usehooks-ts";
+import { ZOOM_EAGERNESS_FACTOR, ZOOM_FACTOR } from "@/constants";
 import { Cardinality, Constraint, ObjectType } from "@/enums";
 import { isSameElement } from "@/lib/utils";
-import { useCanvas, useDiagram } from "./hooks";
+import { useCanvas, useDiagram, useTransform } from "./hooks";
 import Relationship from "./modules/relationship";
 import Table, { type FiledData, type TableData } from "./modules/table";
 
@@ -86,11 +88,23 @@ export default function Canvas() {
   const { tables, setTables, updateTable, addRelationship, relationships } =
     useDiagram();
   const { theme } = useTheme();
+  const { transform, setTransform } = useTransform();
+
+  const transformRef = useRef(transform);
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+
   useEffect(() => {
     setTables(mockTables);
   }, [setTables]);
 
   const [linking, setLinking] = useState(false);
+  const [panning, setPanning] = useState({
+    isPanning: false,
+    panStart: { x: 0, y: 0 },
+    cursorStart: { x: 0, y: 0 },
+  });
   const {
     canvas: { viewBox },
     pointer,
@@ -161,13 +175,23 @@ export default function Canvas() {
       };
     }[]
   >([]);
+  // 是否对齐网格线
+  const snapToGrid = true;
   const coordinatesAfterSnappingToGrid = ({
     x,
     y,
   }: {
     x: number;
     y: number;
-  }) => ({ x, y });
+  }) => {
+    if (snapToGrid) {
+      return {
+        x: Math.round(x / gridSize) * gridSize,
+        y: Math.round(y / gridSize) * gridSize,
+      };
+    }
+    return { x, y };
+  };
   // this is used to store the element that is clicked on
   // at the moment, and shouldn't be a part of the state
   const elementPointerDown = useRef<null | {
@@ -227,7 +251,17 @@ export default function Canvas() {
       return;
     }
     const isMouseLeftButton = ev.button === 0;
-    // const isMouseMiddleButton = event.button === 1;
+    const isMouseMiddleButton = ev.button === 1;
+    if (isMouseMiddleButton) {
+      setPanning({
+        isPanning: true,
+        panStart: transform.pan,
+        // Diagram space depends on the current panning.
+        // Use screen space to avoid circular dependencies and undefined behavior.
+        cursorStart: pointer.spaces.screen,
+      });
+      pointer.setStyle("grabbing");
+    }
     if (isMouseLeftButton && elementPointerDown.current !== null) {
       handlePointerDownOnElement(ev, elementPointerDown.current);
     }
@@ -239,6 +273,21 @@ export default function Canvas() {
   };
   const handlePointerMove = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
+      return;
+    }
+
+    if (panning.isPanning) {
+      setTransform((prev) => ({
+        ...prev,
+        pan: {
+          x:
+            panning.panStart.x +
+            (panning.cursorStart.x - pointer.spaces.screen.x) / transform.zoom,
+          y:
+            panning.panStart.y +
+            (panning.cursorStart.y - pointer.spaces.screen.y) / transform.zoom,
+        },
+      }));
       return;
     }
 
@@ -332,6 +381,9 @@ export default function Canvas() {
       );
     }
     setDragging(notDragging);
+
+    setPanning((old) => ({ ...old, isPanning: false }));
+    pointer.setStyle("default");
     if (linking) {
       handleLinking();
     }
@@ -394,6 +446,51 @@ export default function Canvas() {
     setLinking(true);
   };
 
+  useEventListener(
+    "wheel",
+    (e: WheelEvent) => {
+      e.preventDefault();
+
+      if (e.ctrlKey || e.metaKey) {
+        // How "eager" the viewport is to
+        // center the cursor's coordinates
+        setTransform((prev) => ({
+          pan: {
+            x:
+              prev.pan.x -
+              ((pointer.spaces.diagram.x ?? 0) - prev.pan.x) *
+                ZOOM_EAGERNESS_FACTOR *
+                Math.sign(e.deltaY),
+            y:
+              prev.pan.y -
+              ((pointer.spaces.diagram.y ?? 0) - prev.pan.y) *
+                ZOOM_EAGERNESS_FACTOR *
+                Math.sign(e.deltaY),
+          },
+          zoom:
+            e.deltaY <= 0 ? prev.zoom * ZOOM_FACTOR : prev.zoom / ZOOM_FACTOR,
+        }));
+      } else if (e.shiftKey) {
+        setTransform((prev) => ({
+          ...prev,
+          pan: {
+            ...prev.pan,
+            x: prev.pan.x + e.deltaY / prev.zoom,
+          },
+        }));
+      } else {
+        setTransform((prev) => ({
+          ...prev,
+          pan: {
+            x: prev.pan.x + e.deltaX / prev.zoom,
+            y: prev.pan.y + e.deltaY / prev.zoom,
+          },
+        }));
+      }
+    },
+    canvasRef as RefObject<SVGSVGElement>,
+    { passive: false }
+  );
   return (
     <div className="h-full grow touch-none" id="svg-container">
       <div

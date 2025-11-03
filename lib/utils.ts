@@ -163,7 +163,7 @@ export function calcPath(
       return `M ${x1 + width} ${y1} L ${midX - radius} ${y1} A ${radius} ${radius} 0 0 0 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${midX + radius} ${y2} L ${endX} ${y2}`;
     }
     if (x1 + width >= x2 && x1 + width <= x2 + width) {
-      return `M ${x1} ${y1} L ${x1 - doubleRadius} ${y1} A ${radius} ${radius} 0 0 1 ${x1 - radius - doubleRadius} ${y1 - radius} L ${x1 - threeRadius} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${x1 - doubleRadius} ${y2} L ${endX} ${y2}`;
+      return `M ${x1} ${y1} L ${x1 - doubleRadius} ${y1} A ${radius} ${radius} 0 0 1 ${x1 - threeRadius} ${y1 - radius} L ${x1 - threeRadius} ${y2 + radius} A ${radius} ${radius} 0 0 1 ${x1 - doubleRadius} ${y2} L ${endX} ${y2}`;
     }
     if (x1 >= x2 && x1 <= x2 + width) {
       return `M ${x1 + width} ${y1} L ${x1 + width + radius} ${y1} A ${radius} ${radius} 0 0 0 ${x1 + width + doubleRadius} ${y1 - radius} L ${x1 + width + doubleRadius} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${x1 + width + radius} ${y2} L ${x2 + width} ${y2}`;
