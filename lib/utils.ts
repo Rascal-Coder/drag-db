@@ -87,13 +87,18 @@ type Relationship = {
   controlPoints?: { x: number; y: number }[];
 };
 
+export type PathResult = {
+  d: string;
+  isLinear: boolean;
+};
+
 export function calcPath(
   r: Relationship | undefined,
   tableWidth = 200,
   zoom = 1
-): string {
+): PathResult {
   if (!r) {
-    return "";
+    return { d: "", isLinear: false };
   }
   const width = tableWidth * zoom;
 
@@ -112,21 +117,23 @@ export function calcPath(
   const midX = (x2 + x1 + width) / 2;
   const endX = x2 + width < x1 ? x2 + width : x2;
 
-  const tryStraightLineCase = () => {
+  const tryStraightLineCase = (): string | null => {
     if (Math.abs(y1 - y2) > TABLE_FIELD_HEIGHT * zoom) {
-      return "";
+      return null;
     }
     const radiusLocal = Math.abs(y2 - y1) / RADIUS_DIVISOR;
     if (radiusLocal > 2) {
-      return "";
+      return null;
     }
+    // Add small offset to y2 to ensure line renders properly
+    const y2Final = y2 + LINE_EPSILON;
     if (x1 + width <= x2) {
-      return `M ${x1 + width} ${y1} L ${x2} ${y2 + LINE_EPSILON}`;
+      return `M ${x1 + width} ${y1} L ${x2} ${y2Final}`;
     }
     if (x2 + width < x1) {
-      return `M ${x1} ${y1} L ${x2 + width} ${y2 + LINE_EPSILON}`;
+      return `M ${x1} ${y1} L ${x2 + width} ${y2Final}`;
     }
-    return "";
+    return null;
   };
 
   const radius = (() => {
@@ -139,7 +146,7 @@ export function calcPath(
 
   const straight = tryStraightLineCase();
   if (straight) {
-    return straight;
+    return { d: straight, isLinear: true };
   }
 
   const doubleRadius = 2 * radius;
@@ -171,7 +178,8 @@ export function calcPath(
     return `M ${x1} ${y1} L ${midX + radius} ${y1} A ${radius} ${radius} 0 0 1 ${midX} ${y1 - radius} L ${midX} ${y2 + radius} A ${radius} ${radius} 0 0 0 ${midX - radius} ${y2} L ${endX} ${y2}`;
   };
 
-  return y1 <= y2 ? pathWhenYIncreasing() : pathWhenYDecreasing();
+  const pathData = y1 <= y2 ? pathWhenYIncreasing() : pathWhenYDecreasing();
+  return { d: pathData, isLinear: false };
 }
 
 // hex2rgba: 简单将 #RRGGBB 转换为 rgba(r,g,b,a)
@@ -184,4 +192,46 @@ export function hex2rgba(hex: string, alpha: number): string {
   const g = Number.parseInt(hex.slice(HEX_G_START, HEX_G_END), 16);
   const b = Number.parseInt(hex.slice(HEX_B_START, HEX_B_END), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function getRectFromEndpoints({
+  x1,
+  x2,
+  y1,
+  y2,
+}: {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}) {
+  const width = Math.abs(x1 - x2);
+  const height = Math.abs(y1 - y2);
+
+  const x = Math.min(x1, x2);
+  const y = Math.min(y1, y2);
+
+  return { x, y, width, height };
+}
+
+export function isInsideRect(
+  rect1: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  },
+  rect2: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
+) {
+  return (
+    rect1.x > rect2.x &&
+    rect1.x + rect1.width < rect2.x + rect2.width &&
+    rect1.y > rect2.y &&
+    rect1.y + rect1.height < rect2.y + rect2.height
+  );
 }

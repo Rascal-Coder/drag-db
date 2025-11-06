@@ -6,8 +6,9 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { useEventListener } from "usehooks-ts";
 import { ZOOM_EAGERNESS_FACTOR, ZOOM_FACTOR } from "@/constants";
 import { Cardinality, Constraint, ObjectType } from "@/enums";
-import { isSameElement } from "@/lib/utils";
+import { getRectFromEndpoints, isSameElement } from "@/lib/utils";
 import { useCanvas, useDiagram, useTransform } from "./hooks";
+import { useSelect } from "./hooks/use-select";
 import Relationship from "./modules/relationship";
 import Table, { type FiledData, type TableData } from "./modules/table";
 
@@ -91,6 +92,17 @@ export default function Canvas() {
   const { transform, setTransform } = useTransform();
 
   const transformRef = useRef(transform);
+
+  const [bulkSelectRect, setBulkSelectRect] = useState({
+    x1: 0,
+    y1: 0,
+    x2: 0,
+    y2: 0,
+    show: false,
+    ctrlKey: false,
+    metaKey: false,
+  });
+
   useEffect(() => {
     transformRef.current = transform;
   }, [transform]);
@@ -144,6 +156,7 @@ export default function Canvas() {
     tableId: "",
     fieldId: "",
   });
+
   const [linkingLine, setLinkingLine] = useState({
     startTableId: "",
     startFieldId: "",
@@ -154,13 +167,7 @@ export default function Canvas() {
     endX: 0,
     endY: 0,
   });
-  const [_, setSelectedElement] = useState<{
-    id: string;
-    type: ObjectType;
-  }>({
-    id: "",
-    type: ObjectType.NONE,
-  });
+  const { setSelectedElement, selectedElement } = useSelect();
   const [bulkSelectedElements, setBulkSelectedElements] = useState<
     {
       id: string;
@@ -198,6 +205,61 @@ export default function Canvas() {
     element: TableData;
     type: ObjectType;
   }>(null);
+  const isCtrlLike = (ev: React.PointerEvent<SVGSVGElement>) =>
+    ev.ctrlKey || ev.metaKey;
+
+  const buildElementInBulk = (
+    element: TableData,
+    type: ObjectType
+  ): {
+    id: string;
+    type: number;
+    currentCoords: { x: number; y: number };
+    initialCoords: { x: number; y: number };
+  } => ({
+    id: element.id,
+    type,
+    currentCoords: { x: element.x, y: element.y },
+    initialCoords: { x: element.x, y: element.y },
+  });
+
+  const beginDragging = (element: TableData, type: ObjectType) => {
+    setDragging({
+      id: element.id,
+      type,
+      grabOffset: {
+        x: (pointer.spaces.diagram.x ?? 0) - element.x,
+        y: (pointer.spaces.diagram.y ?? 0) - element.y,
+      },
+    });
+  };
+
+  const handleCtrlSelection = (
+    isSelected: boolean,
+    elementInBulk: {
+      id: string;
+      type: number;
+      currentCoords: { x: number; y: number };
+      initialCoords: { x: number; y: number };
+    }
+  ) => {
+    if (isSelected) {
+      if (bulkSelectedElements.length > 1) {
+        setBulkSelectedElements(
+          bulkSelectedElements.filter((el) => !isSameElement(el, elementInBulk))
+        );
+        setSelectedElement({
+          ...selectedElement,
+          type: ObjectType.NONE,
+          id: "",
+        });
+      }
+    } else {
+      setBulkSelectedElements([...bulkSelectedElements, elementInBulk]);
+    }
+    setDragging(notDragging);
+  };
+
   const handlePointerDownOnElement = (
     ev: React.PointerEvent<SVGSVGElement>,
     {
@@ -212,44 +274,40 @@ export default function Canvas() {
       return;
     }
     // 记录被选择元素
-    if (!(ev.ctrlKey || ev.metaKey)) {
+    if (!isCtrlLike(ev)) {
       setSelectedElement((prev) => ({
         ...prev,
         type,
         id: element.id,
       }));
     }
-    // 按住ctrl就不是在拖拽
-    if (ev.ctrlKey || ev.metaKey) {
-      setDragging(notDragging);
-      return;
-    }
 
-    const elementInBulk = {
-      id: element.id,
-      type,
-      currentCoords: { x: element.x, y: element.y },
-      initialCoords: { x: element.x, y: element.y },
-    };
+    setBulkSelectRect((prev) => ({
+      ...prev,
+      show: false,
+    }));
+
+    const elementInBulk = buildElementInBulk(element, type);
     const isSelected = bulkSelectedElements.some((el) =>
       isSameElement(el, elementInBulk)
     );
+
+    // 按住ctrl就不是在拖拽
+    if (isCtrlLike(ev)) {
+      handleCtrlSelection(isSelected, elementInBulk);
+      return;
+    }
+
     if (!isSelected) {
       setBulkSelectedElements([elementInBulk]);
     }
-    setDragging({
-      id: element.id,
-      type,
-      grabOffset: {
-        x: (pointer.spaces.diagram.x ?? 0) - element.x,
-        y: (pointer.spaces.diagram.y ?? 0) - element.y,
-      },
-    });
+    beginDragging(element, type);
   };
   const handlePointerDown = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
       return;
     }
+
     const isMouseLeftButton = ev.button === 0;
     const isMouseMiddleButton = ev.button === 1;
     if (isMouseMiddleButton) {
@@ -262,44 +320,31 @@ export default function Canvas() {
       });
       pointer.setStyle("grabbing");
     }
-    if (isMouseLeftButton && elementPointerDown.current !== null) {
-      handlePointerDownOnElement(ev, elementPointerDown.current);
-    }
-    // Reset the pointer-down element when clicking outside tables or after handling
-    // to avoid keeping a stale reference across clicks.
     if (isMouseLeftButton) {
+      const clickedElement = elementPointerDown.current;
       elementPointerDown.current = null;
+
+      if (clickedElement !== null) {
+        // 点击在元素上，处理元素点击逻辑
+        handlePointerDownOnElement(ev, clickedElement);
+      } else {
+        // 点击在空白区域，显示框选框
+        setBulkSelectRect({
+          x1: pointer.spaces.diagram.x ?? 0,
+          y1: pointer.spaces.diagram.y ?? 0,
+          x2: pointer.spaces.diagram.x ?? 0,
+          y2: pointer.spaces.diagram.y ?? 0,
+          show: true,
+          ctrlKey: ev.ctrlKey,
+          metaKey: ev.metaKey,
+        });
+      }
+      pointer.setStyle("crosshair");
     }
   };
-  const handlePointerMove = (ev: React.PointerEvent<SVGSVGElement>) => {
-    if (!ev.isPrimary) {
-      return;
-    }
 
-    if (panning.isPanning) {
-      setTransform((prev) => ({
-        ...prev,
-        pan: {
-          x:
-            panning.panStart.x +
-            (panning.cursorStart.x - pointer.spaces.screen.x) / transform.zoom,
-          y:
-            panning.panStart.y +
-            (panning.cursorStart.y - pointer.spaces.screen.y) / transform.zoom,
-        },
-      }));
-      return;
-    }
-
-    if (linking) {
-      setLinkingLine({
-        ...linkingLine,
-        endX: pointer.spaces.diagram.x ?? 0,
-        endY: pointer.spaces.diagram.y ?? 0,
-      });
-      return;
-    }
-    if (!isDragging()) {
+  const handleDraggingMove = () => {
+    if (bulkSelectedElements.length === 0) {
       return;
     }
 
@@ -335,10 +380,6 @@ export default function Canvas() {
       setBulkSelectedElements(updated);
     };
 
-    if (bulkSelectedElements.length === 0) {
-      return;
-    }
-
     const mainFinal = getMainElementFinalCoords();
     const found = findDraggedElementInBulk();
     if (!found) {
@@ -346,7 +387,49 @@ export default function Canvas() {
     }
     const { deltaX, deltaY } = computeDelta(found.currentCoords, mainFinal);
     applyDeltaToBulkSelection(deltaX, deltaY);
-    return;
+  };
+
+  const handlePointerMove = (ev: React.PointerEvent<SVGSVGElement>) => {
+    if (!ev.isPrimary) {
+      return;
+    }
+
+    if (panning.isPanning) {
+      setTransform((prev) => ({
+        ...prev,
+        pan: {
+          x:
+            panning.panStart.x +
+            (panning.cursorStart.x - pointer.spaces.screen.x) / transform.zoom,
+          y:
+            panning.panStart.y +
+            (panning.cursorStart.y - pointer.spaces.screen.y) / transform.zoom,
+        },
+      }));
+      return;
+    }
+
+    if (linking) {
+      setLinkingLine({
+        ...linkingLine,
+        endX: pointer.spaces.diagram.x ?? 0,
+        endY: pointer.spaces.diagram.y ?? 0,
+      });
+      return;
+    }
+
+    if (isDragging()) {
+      handleDraggingMove();
+      return;
+    }
+
+    if (bulkSelectRect.show) {
+      setBulkSelectRect((prev) => ({
+        ...prev,
+        x2: pointer.spaces.diagram.x ?? 0,
+        y2: pointer.spaces.diagram.y ?? 0,
+      }));
+    }
   };
 
   const getCardinality = (startField: FiledData, endField: FiledData) => {
@@ -379,6 +462,15 @@ export default function Canvas() {
           initialCoords: { ...el.currentCoords },
         }))
       );
+    }
+
+    if (bulkSelectRect.show) {
+      setBulkSelectRect((prev) => ({
+        ...prev,
+        x2: pointer.spaces.diagram.x ?? 0,
+        y2: pointer.spaces.diagram.y ?? 0,
+        show: false,
+      }));
     }
     setDragging(notDragging);
 
@@ -557,6 +649,15 @@ export default function Canvas() {
               fill="none"
               stroke={theme === "dark" ? "#dfe3eb" : "#b1b5be"}
               strokeDasharray="8,8"
+            />
+          )}
+          {bulkSelectRect.show && (
+            <rect
+              {...getRectFromEndpoints(bulkSelectRect)}
+              fill="#3B82F6"
+              fillOpacity={0.2}
+              stroke="#2563EB"
+              strokeWidth={2}
             />
           )}
         </svg>

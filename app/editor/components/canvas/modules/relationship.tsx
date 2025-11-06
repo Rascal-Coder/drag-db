@@ -23,11 +23,15 @@ export default function Relationship({ data }: { data: RelationshipData }) {
       endTable: { x: endTable.x, y: endTable.y },
     };
   }, [tables, data]);
+
+  // 计算路径并判断是否为直线
+  const pathResult = calcPath(pathValues, DEFAULT_TABLE_WIDTH);
+
   return (
     <g className="group select-none">
       <path
         cursor="pointer"
-        d={calcPath(pathValues, DEFAULT_TABLE_WIDTH)}
+        d={pathResult.d}
         fill="none"
         stroke="transparent"
         strokeWidth={12}
@@ -35,9 +39,10 @@ export default function Relationship({ data }: { data: RelationshipData }) {
       <path
         className="relationship-path"
         cursor="pointer"
-        d={calcPath(pathValues, DEFAULT_TABLE_WIDTH)}
+        d={pathResult.d}
         fill="none"
-        filter="url(#rel-shadow)"
+        filter={pathResult.isLinear ? undefined : "url(#rel-shadow)"}
+        strokeWidth={2.5}
       />
       <filter height="140%" id="rel-shadow" width="140%" x="-20%" y="-20%">
         <feDropShadow
