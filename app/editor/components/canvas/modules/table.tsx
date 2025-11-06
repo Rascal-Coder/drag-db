@@ -8,7 +8,7 @@ import {
   Trash,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,13 +24,16 @@ import {
   TABLE_FIELD_HEIGHT,
   TABLE_HEADER_HEIGHT,
 } from "@/constants";
+import { ObjectType } from "@/enums";
 import {
   cn,
   formatTypeSize,
+  getTableHeight,
   getTypeColor,
   getTypeDef,
   hex2rgba,
 } from "@/lib/utils";
+import { useSelect } from "../hooks/use-select";
 
 // 主题相关 alpha
 const DARK_MAIN_BG_ALPHA = 0.8; // dark下主色透明度
@@ -93,6 +96,7 @@ export default function Table({
     }>
   >;
 }) {
+  const { selectedElement, bulkSelectedElements } = useSelect();
   const [open, setOpen] = useState(false);
   const [hoveredField, setHoveredField] = useState<null | number>(null);
   const lockUnlockTable = () => {
@@ -102,6 +106,15 @@ export default function Table({
     setOpen(true);
   };
 
+  const isSelected = useMemo(
+    () =>
+      (selectedElement.id === tableData.id &&
+        selectedElement.type === ObjectType.TABLE) ||
+      bulkSelectedElements.some(
+        (e) => e.type === ObjectType.TABLE && e.id === tableData.id
+      ),
+    [selectedElement, tableData, bulkSelectedElements]
+  );
   // const mockFields: ReadonlyArray<{
   //   name: string;
   //   type: string;
@@ -118,10 +131,7 @@ export default function Table({
   //   { name: "meta", type: "JSON", notNull: true },
   // ];
 
-  const height =
-    tableData.fields.length * TABLE_FIELD_HEIGHT +
-    TABLE_HEADER_HEIGHT +
-    TABLE_COLOR_STRIP_HEIGHT;
+  const height = getTableHeight(tableData);
 
   // 获取当前主题，用于透明度分支控制
   const { theme } = useTheme();
@@ -147,9 +157,10 @@ export default function Table({
       y={tableData.y}
     >
       <div
-        className={
-          "w-full select-none rounded-lg border-2 border-zinc-300 bg-accent text-zinc-800 hover:border-primary hover:border-dashed dark:border-zinc-600 dark:text-zinc-200"
-        }
+        className={cn(
+          "w-full select-none rounded-lg border-2 border-zinc-300 bg-accent text-zinc-800 hover:border-primary hover:border-dashed dark:border-zinc-600 dark:text-zinc-200",
+          isSelected && "border-primary border-solid dark:border-primary/80"
+        )}
         style={{ direction: "ltr" }}
       >
         <div

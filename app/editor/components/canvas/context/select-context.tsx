@@ -11,11 +11,23 @@ type SelectState = {
   id: string;
   type: ObjectType;
 };
+type BulkSelectedElement = {
+  id: string;
+  type: number;
+  currentCoords: {
+    x: number;
+    y: number;
+  };
+  initialCoords: {
+    x: number;
+    y: number;
+  };
+};
 type SelectContextValue = {
   selectedElement: SelectState;
   setSelectedElement: Dispatch<SetStateAction<SelectState>>;
-  bulkSelectedElements: SelectState[];
-  setBulkSelectedElements: Dispatch<SetStateAction<SelectState[]>>;
+  bulkSelectedElements: BulkSelectedElement[];
+  setBulkSelectedElements: Dispatch<SetStateAction<BulkSelectedElement[]>>;
 };
 export const SelectContext = createContext<null | SelectContextValue>(null);
 export default function SelectContextProvider({
@@ -28,7 +40,18 @@ export default function SelectContextProvider({
     id: "",
   });
   const [bulkSelectedElements, setBulkSelectedElements] = useState<
-    SelectState[]
+    {
+      id: string;
+      type: number;
+      currentCoords: {
+        x: number;
+        y: number;
+      };
+      initialCoords: {
+        x: number;
+        y: number;
+      };
+    }[]
   >([]);
 
   return (

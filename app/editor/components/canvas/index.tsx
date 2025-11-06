@@ -4,9 +4,18 @@ import { nanoid } from "nanoid";
 import { useTheme } from "next-themes";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { useEventListener } from "usehooks-ts";
-import { ZOOM_EAGERNESS_FACTOR, ZOOM_FACTOR } from "@/constants";
+import {
+  DEFAULT_TABLE_WIDTH,
+  ZOOM_EAGERNESS_FACTOR,
+  ZOOM_FACTOR,
+} from "@/constants";
 import { Cardinality, Constraint, ObjectType } from "@/enums";
-import { getRectFromEndpoints, isSameElement } from "@/lib/utils";
+import {
+  getRectFromEndpoints,
+  getTableHeight,
+  isInsideRect,
+  isSameElement,
+} from "@/lib/utils";
 import { useCanvas, useDiagram, useTransform } from "./hooks";
 import { useSelect } from "./hooks/use-select";
 import Relationship from "./modules/relationship";
@@ -167,21 +176,12 @@ export default function Canvas() {
     endX: 0,
     endY: 0,
   });
-  const { setSelectedElement, selectedElement } = useSelect();
-  const [bulkSelectedElements, setBulkSelectedElements] = useState<
-    {
-      id: string;
-      type: number;
-      currentCoords: {
-        x: number;
-        y: number;
-      };
-      initialCoords: {
-        x: number;
-        y: number;
-      };
-    }[]
-  >([]);
+  const {
+    setSelectedElement,
+    selectedElement,
+    bulkSelectedElements,
+    setBulkSelectedElements,
+  } = useSelect();
   // 是否对齐网格线
   const snapToGrid = true;
   const coordinatesAfterSnappingToGrid = ({
@@ -303,6 +303,38 @@ export default function Canvas() {
     }
     beginDragging(element, type);
   };
+
+  // 提取左键点击逻辑以降低复杂度
+  const handleLeftButtonDown = (ev: React.PointerEvent<SVGSVGElement>) => {
+    const clickedElement = elementPointerDown.current;
+    elementPointerDown.current = null;
+
+    if (clickedElement !== null) {
+      // 点击在元素上，处理元素点击逻辑
+      handlePointerDownOnElement(ev, clickedElement);
+    } else {
+      // 点击在空白区域，显示框选框
+      setBulkSelectRect({
+        x1: pointer.spaces.diagram.x ?? 0,
+        y1: pointer.spaces.diagram.y ?? 0,
+        x2: pointer.spaces.diagram.x ?? 0,
+        y2: pointer.spaces.diagram.y ?? 0,
+        show: true,
+        ctrlKey: ev.ctrlKey,
+        metaKey: ev.metaKey,
+      });
+      // 如果不是 Ctrl/Cmd 点击，清空选择状态
+      if (!isCtrlLike(ev)) {
+        setSelectedElement({
+          type: ObjectType.NONE,
+          id: "",
+        });
+        setBulkSelectedElements([]);
+      }
+    }
+    pointer.setStyle("crosshair");
+  };
+
   const handlePointerDown = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
       return;
@@ -321,25 +353,7 @@ export default function Canvas() {
       pointer.setStyle("grabbing");
     }
     if (isMouseLeftButton) {
-      const clickedElement = elementPointerDown.current;
-      elementPointerDown.current = null;
-
-      if (clickedElement !== null) {
-        // 点击在元素上，处理元素点击逻辑
-        handlePointerDownOnElement(ev, clickedElement);
-      } else {
-        // 点击在空白区域，显示框选框
-        setBulkSelectRect({
-          x1: pointer.spaces.diagram.x ?? 0,
-          y1: pointer.spaces.diagram.y ?? 0,
-          x2: pointer.spaces.diagram.x ?? 0,
-          y2: pointer.spaces.diagram.y ?? 0,
-          show: true,
-          ctrlKey: ev.ctrlKey,
-          metaKey: ev.metaKey,
-        });
-      }
-      pointer.setStyle("crosshair");
+      handleLeftButtonDown(ev);
     }
   };
 
@@ -451,6 +465,55 @@ export default function Canvas() {
     return Cardinality.ONE_TO_ONE;
   };
 
+  const collectSelectedElements = () => {
+    const rect = getRectFromEndpoints(bulkSelectRect);
+    const elements: typeof bulkSelectedElements = [];
+    const shouldAddElement = (
+      elementRect: { x: number; y: number; width: number; height: number },
+      element: {
+        id: string;
+        type: ObjectType;
+        currentCoords: { x: number; y: number };
+        initialCoords: { x: number; y: number };
+      }
+    ) => {
+      // if ctrl key is pressed, only add the elements that are not already selected
+      // can theoretically be optimized later if the selected elements is
+      // a map from id to element (after the ids are made unique)
+      return (
+        isInsideRect(elementRect, rect) &&
+        !(
+          (bulkSelectRect.ctrlKey || bulkSelectRect.metaKey) &&
+          bulkSelectedElements.some((el) => isSameElement(el, element))
+        )
+      );
+    };
+
+    for (const table of tables) {
+      const element = {
+        id: table.id,
+        type: ObjectType.TABLE,
+        currentCoords: { x: table.x, y: table.y },
+        initialCoords: { x: table.x, y: table.y },
+      };
+      const tableRect = {
+        x: table.x,
+        y: table.y,
+        width: DEFAULT_TABLE_WIDTH,
+        height: getTableHeight(table),
+      };
+      if (shouldAddElement(tableRect, element)) {
+        elements.push(element);
+      }
+    }
+
+    if (bulkSelectRect.ctrlKey || bulkSelectRect.metaKey) {
+      setBulkSelectedElements([...bulkSelectedElements, ...elements]);
+    } else {
+      setBulkSelectedElements(elements);
+    }
+  };
+
   const handlePointerUp = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!ev.isPrimary) {
       return;
@@ -471,6 +534,9 @@ export default function Canvas() {
         y2: pointer.spaces.diagram.y ?? 0,
         show: false,
       }));
+      if (!isDragging()) {
+        collectSelectedElements();
+      }
     }
     setDragging(notDragging);
 

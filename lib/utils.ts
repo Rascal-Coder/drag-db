@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { TableData } from "@/app/editor/components/canvas/modules/table";
 import {
   ARC_BASE_RADIUS,
   HEX_B_END,
@@ -11,6 +12,7 @@ import {
   HEX_R_START,
   LINE_EPSILON,
   RADIUS_DIVISOR,
+  TABLE_COLOR_STRIP_HEIGHT,
   TABLE_FIELD_HEIGHT,
   TABLE_HEADER_HEIGHT,
 } from "@/constants";
@@ -233,5 +235,12 @@ export function isInsideRect(
     rect1.x + rect1.width < rect2.x + rect2.width &&
     rect1.y > rect2.y &&
     rect1.y + rect1.height < rect2.y + rect2.height
+  );
+}
+export function getTableHeight(tableData: TableData) {
+  return (
+    tableData.fields.length * TABLE_FIELD_HEIGHT +
+    TABLE_HEADER_HEIGHT +
+    TABLE_COLOR_STRIP_HEIGHT
   );
 }
