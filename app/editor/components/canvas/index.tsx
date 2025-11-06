@@ -94,6 +94,11 @@ const mockTables = [
   },
 ];
 const gridSize = 24;
+
+const BULK_SELECTION_FRAME_OFFSET = 8; // 包裹框距离表格的偏移量（px）
+const BULK_SELECTION_FRAME_STROKE_WIDTH = 1; // 包裹框线条宽度（px）
+const BULK_SELECTION_FRAME_RADIUS = 12; // 包裹框圆角（px）
+
 export default function Canvas() {
   const { tables, setTables, updateTable, addRelationship, relationships } =
     useDiagram();
@@ -604,6 +609,42 @@ export default function Canvas() {
     setLinking(true);
   };
 
+  // 计算批量选中元素的包裹框边界
+  const calculateBulkSelectionBounds = () => {
+    if (bulkSelectedElements.length === 0) {
+      return null;
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const element of bulkSelectedElements) {
+      if (element.type === ObjectType.TABLE) {
+        const table = tables.find((t) => t.id === element.id);
+        if (table) {
+          const tableHeight = getTableHeight(table);
+          minX = Math.min(minX, table.x);
+          minY = Math.min(minY, table.y);
+          maxX = Math.max(maxX, table.x + DEFAULT_TABLE_WIDTH);
+          maxY = Math.max(maxY, table.y + tableHeight);
+        }
+      }
+    }
+
+    if (minX === Number.POSITIVE_INFINITY) {
+      return null;
+    }
+
+    return {
+      x: minX - BULK_SELECTION_FRAME_OFFSET,
+      y: minY - BULK_SELECTION_FRAME_OFFSET,
+      width: maxX - minX + BULK_SELECTION_FRAME_OFFSET * 2,
+      height: maxY - minY + BULK_SELECTION_FRAME_OFFSET * 2,
+    };
+  };
+
   useEventListener(
     "wheel",
     (e: WheelEvent) => {
@@ -682,6 +723,22 @@ export default function Canvas() {
                 strokeWidth="0.5"
               />
             </pattern>
+            {/* 批量选中包裹框阴影效果 */}
+            <filter
+              height="200%"
+              id="bulk-selection-shadow"
+              width="200%"
+              x="-50%"
+              y="-50%"
+            >
+              <feDropShadow
+                dx="0"
+                dy="4"
+                floodColor={theme === "dark" ? "#6366f1" : "#3B82F6"}
+                floodOpacity="0.6"
+                stdDeviation="8"
+              />
+            </filter>
           </defs>
           <rect
             fill="url(#grid)"
@@ -726,6 +783,30 @@ export default function Canvas() {
               strokeWidth={2}
             />
           )}
+          {/* 批量选中元素的整体包裹框（仅在选中多个表格时显示） */}
+          {bulkSelectedElements.length > 1 &&
+            !bulkSelectRect.show &&
+            (() => {
+              const bounds = calculateBulkSelectionBounds();
+              if (!bounds) {
+                return null;
+              }
+              return (
+                <rect
+                  className="pointer-events-none"
+                  fill="none"
+                  filter="url(#bulk-selection-shadow)"
+                  height={bounds.height}
+                  rx={BULK_SELECTION_FRAME_RADIUS}
+                  ry={BULK_SELECTION_FRAME_RADIUS}
+                  stroke={theme === "dark" ? "#6366f1" : "#3B82F6"}
+                  strokeWidth={BULK_SELECTION_FRAME_STROKE_WIDTH}
+                  width={bounds.width}
+                  x={bounds.x}
+                  y={bounds.y}
+                />
+              );
+            })()}
         </svg>
       </div>
     </div>
