@@ -65,6 +65,7 @@ export type TableData = {
   locked: boolean;
   color: string;
   fields: FiledData[];
+  index?: number;
 };
 
 export default function Table({

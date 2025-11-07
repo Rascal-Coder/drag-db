@@ -11,7 +11,7 @@ const DEFAULT_TABLE_WIDTH = 220;
 const ZOOM_FACTOR = 1.05;
 const ZOOM_EAGERNESS_FACTOR = 0.05;
 const TRANSFORM_DEBOUNCE_DELAY = 16; // ~60fps
-
+const DEFAULT_BLUE = "#155dfc";
 const HEX_R_START = 1,
   HEX_R_END = 3; // R位置
 const HEX_G_START = 3,
@@ -20,6 +20,7 @@ const HEX_B_START = 5,
   HEX_B_END = 7; // B位置
 const HEX_LENGTH = 7; // #RRGGBB
 export {
+  DEFAULT_BLUE,
   HEX_LENGTH,
   HEX_R_START,
   HEX_R_END,

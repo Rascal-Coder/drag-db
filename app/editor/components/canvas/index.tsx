@@ -21,87 +21,86 @@ import { useSelect } from "./hooks/use-select";
 import Relationship from "./modules/relationship";
 import Table, { type FiledData, type TableData } from "./modules/table";
 
-const mockTables = [
-  {
-    id: "VaOSMG72lrWkujgFO6FB-",
-    name: "table_VaOSMG72lrWkujgFO6FB-",
-    x: 0,
-    y: 0,
-    locked: false,
-    fields: [
-      {
-        name: "id",
-        type: "INTEGER",
-        default: "",
-        check: "",
-        primary: true,
-        unique: true,
-        notNull: true,
-        increment: true,
-        comment: "",
-        id: "SRy51ecVa9axZGMagBQhE",
-      },
-      {
-        id: "1SktdmYhgkcBluMlXRhdS",
-        name: "title",
-        type: "VARCHAR",
-        default: "test title",
-        check: "",
-        primary: false,
-        unique: false,
-        notNull: false,
-        increment: false,
-        comment: "",
-        size: 255,
-      },
-    ],
-    color: "#155dfc",
-  },
-  {
-    id: "VaOSMG72lrWkujgFO6FX-",
-    name: "table_VaOSMG72lrWkujgFO6FX-",
-    x: -290,
-    y: -150,
-    locked: false,
-    fields: [
-      {
-        name: "id",
-        type: "INTEGER",
-        default: "",
-        check: "",
-        primary: true,
-        unique: true,
-        notNull: true,
-        increment: true,
-        comment: "",
-        id: "SRy51ecVa9axZGMagBQhX",
-      },
-      {
-        id: "1SktdmYhgkcBluMlXRhdX",
-        name: "title",
-        type: "VARCHAR",
-        default: "test title",
-        check: "",
-        primary: false,
-        unique: false,
-        notNull: false,
-        increment: false,
-        comment: "",
-        size: 255,
-      },
-    ],
-    color: "#ea22bc",
-  },
-];
+// const mockTables = [
+//   {
+//     id: "VaOSMG72lrWkujgFO6FB-",
+//     name: "table_VaOSMG72lrWkujgFO6FB-",
+//     x: 0,
+//     y: 0,
+//     locked: false,
+//     fields: [
+//       {
+//         name: "id",
+//         type: "INTEGER",
+//         default: "",
+//         check: "",
+//         primary: true,
+//         unique: true,
+//         notNull: true,
+//         increment: true,
+//         comment: "",
+//         id: "SRy51ecVa9axZGMagBQhE",
+//       },
+//       {
+//         id: "1SktdmYhgkcBluMlXRhdS",
+//         name: "title",
+//         type: "VARCHAR",
+//         default: "test title",
+//         check: "",
+//         primary: false,
+//         unique: false,
+//         notNull: false,
+//         increment: false,
+//         comment: "",
+//         size: 255,
+//       },
+//     ],
+//     color: "#155dfc",
+//   },
+//   {
+//     id: "VaOSMG72lrWkujgFO6FX-",
+//     name: "table_VaOSMG72lrWkujgFO6FX-",
+//     x: -290,
+//     y: -150,
+//     locked: false,
+//     fields: [
+//       {
+//         name: "id",
+//         type: "INTEGER",
+//         default: "",
+//         check: "",
+//         primary: true,
+//         unique: true,
+//         notNull: true,
+//         increment: true,
+//         comment: "",
+//         id: "SRy51ecVa9axZGMagBQhX",
+//       },
+//       {
+//         id: "1SktdmYhgkcBluMlXRhdX",
+//         name: "title",
+//         type: "VARCHAR",
+//         default: "test title",
+//         check: "",
+//         primary: false,
+//         unique: false,
+//         notNull: false,
+//         increment: false,
+//         comment: "",
+//         size: 255,
+//       },
+//     ],
+//     color: "#ea22bc",
+//   },
+// ];
 const gridSize = 24;
 
-const BULK_SELECTION_FRAME_OFFSET = 8; // 包裹框距离表格的偏移量（px）
+const BULK_SELECTION_FRAME_OFFSET = 15; // 包裹框距离表格的偏移量（px）
 const BULK_SELECTION_FRAME_STROKE_WIDTH = 1; // 包裹框线条宽度（px）
 const BULK_SELECTION_FRAME_RADIUS = 12; // 包裹框圆角（px）
 
 export default function Canvas() {
-  const { tables, setTables, updateTable, addRelationship, relationships } =
-    useDiagram();
+  const { tables, updateTable, addRelationship, relationships } = useDiagram();
   const { theme } = useTheme();
   const { transform, setTransform } = useTransform();
 
@@ -121,9 +120,9 @@ export default function Canvas() {
     transformRef.current = transform;
   }, [transform]);
 
-  useEffect(() => {
-    setTables(mockTables);
-  }, [setTables]);
+  // useEffect(() => {
+  //   setTables(mockTables);
+  // }, [setTables]);
 
   const [linking, setLinking] = useState(false);
   const [panning, setPanning] = useState({
